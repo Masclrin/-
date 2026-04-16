@@ -1,0 +1,80 @@
+ [
+    //QZ
+    ["kd", "q", 50],
+    ["ku", "q", 1610],
+    ["md", "left", 350],
+    ["mu", "left", 20],
+
+    // szZ
+    ["md", "left", 200],
+    ["kd", "shift", 50],
+    ["ku", "shift", 100],
+    ["mu", "left", 50],
+    ["md", "left", 50],
+    ["mu", "left", 50],
+    ["md", "left", 50],
+    ["mu", "left", 490],
+
+    // szZ
+    ["md", "left", 200],
+    ["kd", "shift", 50],
+    ["ku", "shift", 100],
+    ["mu", "left", 50],
+    ["md", "left", 50],
+    ["mu", "left", 50],
+    ["md", "left", 50],
+    ["mu", "left", 490],
+
+    // szZ
+    ["md", "left", 200],
+    ["kd", "shift", 50],
+    ["ku", "shift", 100],
+    ["mu", "left", 50],
+    ["md", "left", 50],
+    ["mu", "left", 50],
+    ["md", "left", 50],
+    ["mu", "left", 490],
+
+    // szZ
+    ["md", "left", 200],
+    ["kd", "shift", 50],
+    ["ku", "shift", 100],
+    ["mu", "left", 50],
+    ["md", "left", 50],
+    ["mu", "left", 50],
+    ["md", "left", 50],
+    ["mu", "left", 490],
+
+    // szZ
+    ["md", "left", 200],
+    ["kd", "shift", 50],
+    ["ku", "shift", 100],
+    ["mu", "left", 50],
+    ["md", "left", 50],
+    ["mu", "left", 50],
+    ["md", "left", 50],
+    ["mu", "left", 490],
+
+    // szZ
+    ["md", "left", 200],
+    ["kd", "shift", 50],
+    ["ku", "shift", 100],
+    ["mu", "left", 50],
+    ["md", "left", 50],
+    ["mu", "left", 50],
+    ["md", "left", 50],
+    ["mu", "left", 490],
+   // ["view", [50, 0], 50],
+
+    // sz
+    ["md", "left", 200],
+    ["kd", "shift", 50],
+    ["ku", "shift", 100],
+    ["mu", "left", 50],
+    // sz
+    ["md", "left", 200],
+    ["kd", "shift", 50],
+    ["ku", "shift", 100],
+    ["mu", "left", 50]
+
+]

@@ -1,0 +1,26 @@
+[
+    ["loop",4,[
+    ["kd", "a", 40],
+    ["ku", "a", 20],
+    ["md", "left", 10],
+    ["mu", "left", 50],
+    ["md", "left", 10],
+    ["mu", "left", 50],
+    ["md", "right", 40],
+    ["mu", "right", 40],
+    ["md", "right", 40],
+    ["mu", "right", 40],
+    ["wait", 100],
+    ["kd", "d", 40],
+    ["ku", "d", 20],
+    ["md", "left", 10],
+    ["mu", "left", 50],
+    ["md", "left", 10],
+    ["mu", "left", 40],
+    ["md", "right", 40],
+    ["mu", "right", 40],
+    ["md", "right", 40],
+    ["mu", "right", 40]
+    ]]
+
+]

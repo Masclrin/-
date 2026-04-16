@@ -1,0 +1,59 @@
+[   ["kd", "1", 50],
+    ["ku", "1", 150],
+    //ez
+    ["kd", "e", 40],
+    ["md", "left", 10],
+    ["ku", "e", 500],
+    ["mu", "left", 100],
+
+    //qz
+    ["kd", "q", 50],
+    ["ku", "q", 1618],
+    ["md", "left", 340],
+    ["mu", "left", 50],
+
+    //sz
+    ["md", "left", 200],
+    ["kd", "shift", 50],
+    ["ku", "shift", 50],
+    ["mu", "left", 65],
+
+    //szp
+    ["md", "left", 190],
+    ["kd", "shift", 60],
+    ["ku", "shift", 770],
+    ["mu", "left", 595],
+
+    //szz
+    ["md", "left", 200],
+    ["kd", "shift", 50],
+    ["ku", "shift", 100],
+    ["mu", "left", 50],
+    ["md", "left", 50],
+    ["mu", "left", 50],
+    ["md", "left", 50],
+    ["mu", "left", 515],
+
+    //szp
+    ["md", "left", 200],
+    ["kd", "shift", 50],
+    ["ku", "shift", 50],
+    ["mu", "left", 1089],
+
+    //szzp
+    ["md", "left", 200],
+    ["kd", "shift", 50],
+    ["ku", "shift", 1036],
+    ["mu", "left", 600],
+
+    //sz
+    ["md", "left", 200],
+    ["kd", "shift", 50],
+    ["ku", "shift", 50],
+    ["mu", "left", 80],
+     //sz
+    ["md", "left", 200],
+    ["kd", "shift", 50],
+    ["ku", "shift", 1010],
+    ["mu", "left", 80]
+]
