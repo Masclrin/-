@@ -13,7 +13,7 @@ import os
 # ── Interception API 常量（与 interception.h 对齐） ──
 INTERCEPTION_MAX_KEYBOARD = 10
 INTERCEPTION_MAX_MOUSE = 10
-INTERCEPTION_MAX_DEVICE = INTERCEPTION_MAX_KEYBOARD + INTERCEPTION_MAX_MOUSE
+INTERCEPTION_MAX_DEVICE = INTERCEPTION_MAX_KEYBOARD + INTERCEPTION_MAX_MOUSE  # 20
 
 # 键盘设备编号从 1 开始：INTERCEPTION_KEYBOARD(i) = i + 1
 INTERCEPTION_KEYBOARD_START = 1
@@ -37,8 +37,8 @@ INTERCEPTION_FILTER_MOUSE_NONE = 0x0000
 INTERCEPTION_FILTER_MOUSE_ALL = 0xFFFF
 
 # 鼠标设备编号：INTERCEPTION_MOUSE(i) = 10 + i + 1 -> 11..20
-INTERCEPTION_MOUSE_START = INTERCEPTION_MAX_KEYBOARD + 1
-INTERCEPTION_MOUSE_END = INTERCEPTION_MAX_DEVICE
+INTERCEPTION_MOUSE_START = INTERCEPTION_MAX_KEYBOARD + 1  # 11
+INTERCEPTION_MOUSE_END = INTERCEPTION_MAX_DEVICE  # 20
 
 # 默认仅做注入，不拦截物理输入，避免外接键鼠失效。
 INTERCEPTION_CAPTURE_PHYSICAL_INPUT = False
@@ -63,18 +63,17 @@ SC_MAP = {
     "left_arrow": 0x4B, "right_arrow": 0x4D,
 }
 
-# 扩展键标志（右Shift、右Ctrl、右Alt、Enter、方向键等）
-EXTENDED_KEYS = {
+# 扩展键标志集合（右Shift、右Ctrl、右Alt、Enter、方向键等）
+EXTENDED_KEYS = frozenset({
     "right_arrow", "down_arrow", "left_arrow", "up_arrow",
     "right_ctrl", "right_alt", "right_shift",
     "insert", "delete", "home", "end", "page_up", "page_down",
     "numpad_enter",
-}
+})
 
 
 class InterceptionKeyStroke(ctypes.Structure):
     """与 interception.h 的 InterceptionKeyStroke 对齐。"""
-
     _fields_ = [
         ("code", ctypes.c_ushort),
         ("state", ctypes.c_ushort),
@@ -84,7 +83,6 @@ class InterceptionKeyStroke(ctypes.Structure):
 
 class InterceptionMouseStroke(ctypes.Structure):
     """用于计算 InterceptionStroke 的最小缓冲区大小。"""
-
     _fields_ = [
         ("state", ctypes.c_ushort),
         ("flags", ctypes.c_ushort),
@@ -103,11 +101,11 @@ def _resolve_dll_path():
     module_dir = os.path.dirname(os.path.abspath(__file__))
     arch_dir = "x64" if ctypes.sizeof(ctypes.c_void_p) == 8 else "x86"
 
-    candidates = [
+    candidates = (
         os.environ.get("INTERCEPTION_DLL"),
         os.path.join(module_dir, "interception.dll"),
         os.path.join(module_dir, "Interception", "library", arch_dir, "interception.dll"),
-    ]
+    )
 
     for path in candidates:
         if path and os.path.exists(path):
@@ -120,8 +118,7 @@ def _load_interception_dll():
     dll_path = _resolve_dll_path()
     if dll_path:
         return ctypes.WinDLL(dll_path)
-
-    # 最后回退系统路径（若用户手动放到了 System32/PATH）
+    # 回退系统路径（若用户手动放到了 System32/PATH）
     return ctypes.WinDLL("interception.dll")
 
 
@@ -138,82 +135,44 @@ class InterceptionContext:
                 "Interception/library/x64/interception.dll（64位）或 x86（32位）"
             )
 
-        # 绑定官方导出函数（interception_ 前缀）
-        self._lib.interception_create_context.restype = ctypes.c_void_p
-        self._lib.interception_create_context.argtypes = []
+        lib = self._lib
+        # 绑定官方导出函数
+        lib.interception_create_context.restype = ctypes.c_void_p
+        lib.interception_create_context.argtypes = []
+        lib.interception_destroy_context.argtypes = [ctypes.c_void_p]
+        lib.interception_set_filter.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_ushort]
+        lib.interception_send.argtypes = [ctypes.c_void_p, ctypes.c_int,
+                                            ctypes.POINTER(InterceptionStroke), ctypes.c_uint]
+        lib.interception_send.restype = ctypes.c_int
+        lib.interception_is_keyboard.argtypes = [ctypes.c_int]
+        lib.interception_is_keyboard.restype = ctypes.c_int
+        lib.interception_is_mouse.argtypes = [ctypes.c_int]
+        lib.interception_is_mouse.restype = ctypes.c_int
 
-        self._lib.interception_destroy_context.argtypes = [ctypes.c_void_p]
-
-        self._lib.interception_set_filter.argtypes = [
-            ctypes.c_void_p,
-            ctypes.c_void_p,
-            ctypes.c_ushort,
-        ]
-
-        self._lib.interception_send.argtypes = [
-            ctypes.c_void_p,
-            ctypes.c_int,
-            ctypes.POINTER(InterceptionStroke),
-            ctypes.c_uint,
-        ]
-        self._lib.interception_send.restype = ctypes.c_int
-
-        self._lib.interception_is_keyboard.argtypes = [ctypes.c_int]
-        self._lib.interception_is_keyboard.restype = ctypes.c_int
-
-        self._lib.interception_is_mouse.argtypes = [ctypes.c_int]
-        self._lib.interception_is_mouse.restype = ctypes.c_int
-
-        self._context = self._lib.interception_create_context()
+        self._context = lib.interception_create_context()
         if not self._context:
             raise RuntimeError("无法创建 Interception 上下文")
 
         # 绑定谓词回调：int predicate(int device)
-        self._predicate_keyboard = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_int)(
-            self._lib.interception_is_keyboard
-        )
+        pred_type = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_int)
+        self._predicate_keyboard = pred_type(lib.interception_is_keyboard)
+        self._predicate_mouse = pred_type(lib.interception_is_mouse)
 
-        keyboard_filter = (
-            INTERCEPTION_FILTER_KEY_ALL
-            if INTERCEPTION_CAPTURE_PHYSICAL_INPUT
-            else INTERCEPTION_FILTER_KEY_NONE
-        )
-        self._lib.interception_set_filter(
-            self._context,
-            self._predicate_keyboard,
-            keyboard_filter,
-        )
+        # 设置过滤器
+        key_filter = INTERCEPTION_FILTER_KEY_ALL if INTERCEPTION_CAPTURE_PHYSICAL_INPUT else INTERCEPTION_FILTER_KEY_NONE
+        mouse_filter = INTERCEPTION_FILTER_MOUSE_ALL if INTERCEPTION_CAPTURE_PHYSICAL_INPUT else INTERCEPTION_FILTER_MOUSE_NONE
+        lib.interception_set_filter(self._context, self._predicate_keyboard, key_filter)
+        lib.interception_set_filter(self._context, self._predicate_mouse, mouse_filter)
 
-        self._predicate_mouse = ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_int)(
-            self._lib.interception_is_mouse
-        )
-        mouse_filter = (
-            INTERCEPTION_FILTER_MOUSE_ALL
-            if INTERCEPTION_CAPTURE_PHYSICAL_INPUT
-            else INTERCEPTION_FILTER_MOUSE_NONE
-        )
-        self._lib.interception_set_filter(
-            self._context,
-            self._predicate_mouse,
-            mouse_filter,
-        )
-
-        # 找一个键盘设备编号（1..10）
-        self._device = -1
-        for dev in range(INTERCEPTION_KEYBOARD_START, INTERCEPTION_KEYBOARD_END + 1):
-            if self._lib.interception_is_keyboard(dev):
-                self._device = dev
-                break
-
+        # 查找键盘设备
+        self._device = next((dev for dev in range(INTERCEPTION_KEYBOARD_START, INTERCEPTION_KEYBOARD_END + 1)
+                             if lib.interception_is_keyboard(dev)), -1)
         if self._device < 0:
             raise RuntimeError("没有可用的 Interception 键盘设备")
 
-        self._mouse_devices = []
-        for dev in range(INTERCEPTION_MOUSE_START, INTERCEPTION_MOUSE_END + 1):
-            if self._lib.interception_is_mouse(dev):
-                self._mouse_devices.append(dev)
-
-        # 兼容旧接口：保留默认鼠标设备属性
+        # 查找鼠标设备
+        self._mouse_devices = [dev for dev in range(INTERCEPTION_MOUSE_START, INTERCEPTION_MOUSE_END + 1)
+                               if lib.interception_is_mouse(dev)]
         self._mouse_device = self._mouse_devices[0] if self._mouse_devices else -1
 
     @property
@@ -225,14 +184,7 @@ class InterceptionContext:
         return self._mouse_device
 
     def send_key(self, scan_code, key_state, flags=0):
-        """
-        发送按键事件到内核输入栈。
-
-        参数:
-            scan_code: 键盘扫描码
-            key_state: INTERCEPTION_KEY_DOWN(0x00) 或 INTERCEPTION_KEY_UP(0x01)
-            flags: 附加状态位（如 INTERCEPTION_KEY_E0）
-        """
+        """发送按键事件到内核输入栈。"""
         key_stroke = InterceptionKeyStroke(
             code=ctypes.c_ushort(scan_code),
             state=ctypes.c_ushort(key_state | flags),
@@ -240,19 +192,11 @@ class InterceptionContext:
         )
 
         raw_stroke = InterceptionStroke()
-        ctypes.memmove(
-            ctypes.byref(raw_stroke),
-            ctypes.byref(key_stroke),
-            ctypes.sizeof(InterceptionKeyStroke),
-        )
+        ctypes.memmove(ctypes.byref(raw_stroke), ctypes.byref(key_stroke),
+                       ctypes.sizeof(InterceptionKeyStroke))
 
-        sent = self._lib.interception_send(
-            self._context,
-            self._device,
-            ctypes.byref(raw_stroke),
-            1,
-        )
-        if sent <= 0:
+        if self._lib.interception_send(self._context, self._device,
+                                        ctypes.byref(raw_stroke), 1) <= 0:
             raise RuntimeError("interception_send 发送失败，请确认驱动已安装并已重启")
 
     def send_mouse_click(self, left=True, up=False):
@@ -260,10 +204,8 @@ class InterceptionContext:
         if not self._mouse_devices:
             raise RuntimeError("没有可用的 Interception 鼠标设备")
 
-        if left:
-            state = INTERCEPTION_MOUSE_LEFT_BUTTON_UP if up else INTERCEPTION_MOUSE_LEFT_BUTTON_DOWN
-        else:
-            state = INTERCEPTION_MOUSE_RIGHT_BUTTON_UP if up else INTERCEPTION_MOUSE_RIGHT_BUTTON_DOWN
+        state = (INTERCEPTION_MOUSE_LEFT_BUTTON_UP if up else INTERCEPTION_MOUSE_LEFT_BUTTON_DOWN) if left \
+                else (INTERCEPTION_MOUSE_RIGHT_BUTTON_UP if up else INTERCEPTION_MOUSE_RIGHT_BUTTON_DOWN)
 
         mouse_stroke = InterceptionMouseStroke(
             state=ctypes.c_ushort(state),
@@ -275,25 +217,13 @@ class InterceptionContext:
         )
 
         raw_stroke = InterceptionStroke()
-        ctypes.memmove(
-            ctypes.byref(raw_stroke),
-            ctypes.byref(mouse_stroke),
-            ctypes.sizeof(InterceptionMouseStroke),
-        )
+        ctypes.memmove(ctypes.byref(raw_stroke), ctypes.byref(mouse_stroke),
+                       ctypes.sizeof(InterceptionMouseStroke))
 
-        # 最小修复：向所有可用鼠标设备发送，降低“只命中错误设备”导致的左键吞输入概率。
-        sent_any = False
-        for dev in self._mouse_devices:
-            sent = self._lib.interception_send(
-                self._context,
-                dev,
-                ctypes.byref(raw_stroke),
-                1,
-            )
-            if sent > 0:
-                sent_any = True
-
-        if not sent_any:
+        # 向所有可用鼠标设备发送，降低"只命中错误设备"导致的左键吞输入概率
+        if not any(self._lib.interception_send(self._context, dev,
+                                                ctypes.byref(raw_stroke), 1) > 0
+                   for dev in self._mouse_devices):
             raise RuntimeError("interception_send 鼠标发送失败，请确认驱动已安装并已重启")
 
     def __del__(self):
@@ -306,6 +236,7 @@ class InterceptionContext:
 
 # ── 全局单例 ──
 _ctx = None
+
 
 def get_interception_context():
     """获取全局 Interception 上下文（懒加载）"""
@@ -320,21 +251,18 @@ def get_interception_context():
 def send_key_interception(key_name, up=False):
     """通过 Interception 驱动发送按键（替代 SendInput）"""
     ctx = get_interception_context()
-
-    scan_code = SC_MAP.get(key_name.lower())
+    key_lower = key_name.lower()
+    scan_code = SC_MAP.get(key_lower)
     if scan_code is None:
-        # 回退到 SendInput
         return False
 
     state = INTERCEPTION_KEY_UP if up else INTERCEPTION_KEY_DOWN
-    flags = INTERCEPTION_KEY_E0 if key_name.lower() in EXTENDED_KEYS else 0
-
+    flags = INTERCEPTION_KEY_E0 if key_lower in EXTENDED_KEYS else 0
     ctx.send_key(scan_code, state, flags)
     return True
 
 
 def send_mouse_interception(left=True, up=False):
     """通过 Interception 驱动发送鼠标点击。"""
-    ctx = get_interception_context()
-    ctx.send_mouse_click(left=left, up=up)
+    get_interception_context().send_mouse_click(left=left, up=up)
     return True
